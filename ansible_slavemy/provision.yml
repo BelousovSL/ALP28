@@ -1,0 +1,61 @@
+---
+- name: Сustomization  
+  hosts: servers  
+  become: yes  
+  tasks:
+  - name: Update and upgrade apt packages
+    apt:
+      update_cache: yes
+      upgrade: yes
+ 
+  - name: install packages
+    apt:
+      name: 
+        - mysql-server
+      state: latest
+      update_cache: true
+
+  - name: copy master.sql
+    copy:
+      src: master.sql
+      dest: /home/vagrant/master.sql 
+      owner: vagrant
+      group: vagrant
+      mode: 0644
+
+  - name: copy gtid_mode_on.sql
+    copy:
+      src: gtid_mode_on.sql
+      dest: /home/vagrant/gtid_mode_on.sql
+      owner: vagrant
+      group: vagrant
+      mode: 0644
+
+  - name: copy start_slave.sql
+    copy:
+      src: start_slave.sql
+      dest: /home/vagrant/start_slave.sql
+      owner: vagrant
+      group: vagrant
+      mode: 0644
+
+  - name: copy mysqld.cnf
+    copy:
+      src: mysqld.cnf
+      dest: /etc/mysql/mysql.conf.d
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Restart mysql-server
+    ansible.builtin.systemd_service:
+      state: restarted      
+      name: mysql  
+
+  - name: Run expect to wait for a successful PXE boot via out-of-band CIMC
+    ansible.builtin.shell: |
+      mysql -e 'CREATE DATABASE IF NOT EXISTS bet;'
+      mysql < /home/vagrant/master.sql
+      mysql -uroot -p111 -D bet < /home/vagrant/gtid_mode_on.sql
+      mysql -uroot -p111 -D bet < /home/vagrant/start_slave.sql
+      exit 0
